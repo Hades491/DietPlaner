@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DietPlan AI — Personal Meal Planner</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --card:#121821; --muted:#9fb0c7; --accent:#66d39e; --accent2:#69a6ff; --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:radial-gradient(1200px 800px at 20% -10%, rgba(102,211,158,.15), transparent 60%),radial-gradient(800px 600px at 110% 10%, rgba(105,166,255,.14), transparent 60%),var(--bg);color:#e8f0ff}
+    header{position:sticky;top:0;background:rgba(11,15,20,.7);backdrop-filter:blur(8px);border-bottom:1px solid #1e2632;z-index:5}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px}
+    .title{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:900;color:#0b0f14}
+    h1{font-size:clamp(24px,2.8vw,36px);margin:0}
+    p.lead{margin:6px 0 0;color:var(--muted)}
+
+    main{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;padding:24px;max-width:1100px;margin:0 auto}
+    @media (max-width:900px){main{grid-template-columns:1fr}}
+
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent),var(--card);border:1px solid #1c2633;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0 0 10px;font-size:20px}
+    .card .content{padding:18px}
+    .grid{display:grid;gap:14px;grid-template-columns:repeat(12,1fr)}
+    .grid > .col-6{grid-column:span 6}
+    .grid > .col-12{grid-column:span 12}
+    @media (max-width:700px){.grid>.col-6{grid-column:span 12}}
+
+    label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+    input, select, textarea{width:100%;padding:12px 12px;border-radius:12px;border:1px solid #223041;background:#0e141c;color:#e8f0ff;outline:0}
+    input[type="number"]{appearance:textfield}
+    .row{display:flex;gap:10px}
+
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    button{padding:12px 14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#071018;font-weight:700;cursor:pointer}
+    button.secondary{background:#17202b;color:#cfe3ff;border:1px solid #263447}
+    button.danger{background:var(--danger);color:#120b0b}
+    small.helper{color:#8ea3bd}
+
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .stat{background:#0d141d;border:1px solid #212d3c;border-radius:14px;padding:12px;text-align:center}
+    .stat b{display:block;font-size:18px;margin-top:4px}
+
+    .plan h3{margin:14px 0 8px}
+    .tag{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #274058;color:#a8c0da;margin-right:6px;font-size:12px}
+
+    footer{max-width:1100px;margin:18px auto 40px;color:#93a7c2;opacity:.8;padding:0 24px}
+    .disclaimer{border:1px dashed #33465e;border-radius:14px;padding:12px;background:#0c121a}
+    .hidden{display:none}
+    .ok{color:#7af0b7}
+    .warn{color:#ffd166}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="title">
+        <div class="logo">AI</div>
+        <div>
+          <h1>DietPlan AI — Generate a Personal Meal Plan</h1>
+          <p class="lead">Enter your details. Get calories, macros, and a full-day menu instantly. <span class="tag">No back‑end</span> <span class="tag">On‑device</span></p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- INPUTS -->
+    <section class="card">
+      <div class="content">
+        <h2>Your Details</h2>
+        <form id="form" novalidate>
+          <div class="grid">
+            <div class="col-6">
+              <label for="name">Name (optional)</label>
+              <input id="name" placeholder="e.g., Ana">
+            </div>
+            <div class="col-6">
+              <label for="sex">Sex</label>
+              <select id="sex" required>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </div>
+
+            <div class="col-6">
+              <label for="age">Age (years)</label>
+              <input id="age" type="number" min="5" max="100" step="1" required placeholder="14">
+            </div>
+            <div class="col-6">
+              <label for="height">Height (cm)</label>
+              <input id="height" type="number" min="80" max="230" step="0.5" required placeholder="160">
+            </div>
+
+            <div class="col-6">
+              <label for="weight">Weight (kg)</label>
+              <input id="weight" type="number" min="20" max="250" step="0.1" required placeholder="55">
+            </div>
+            <div class="col-6">
+              <label for="activity">Activity level</label>
+              <select id="activity">
+                <option value="1.2">Sedentary (little exercise)</option>
+                <option value="1.375">Light (1–3 days/week)</option>
+                <option value="1.55" selected>Moderate (3–5 days/week)</option>
+                <option value="1.725">Active (6–7 days/week)</option>
+                <option value="1.9">Very active (physical job + training)</option>
+              </select>
+            </div>
+
+            <div class="col-6">
+              <label for="goal">Goal</label>
+              <select id="goal">
+                <option value="lose">Lose fat</option>
+                <option value="maintain" selected>Maintain</option>
+                <option value="gain">Gain muscle/weight</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label for="diet">Diet type</label>
+              <select id="diet">
+                <option value="balanced" selected>Balanced</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan</option>
+                <option value="lowcarb">Lower‑carb</option>
+                <option value="highprotein">High‑protein</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label for="allergies">Allergies / avoid (comma‑separated)</label>
+              <input id="allergies" placeholder="e.g., peanuts, egg, shrimp">
+            </div>
+
+            <div class="col-12">
+              <label for="notes">Notes (optional)</label>
+              <textarea id="notes" rows="2" placeholder="e.g., school lunch at 1 pm, likes chapati, no spicy"></textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" id="generate">Generate plan</button>
+            <button type="button" class="secondary" id="save">Save inputs</button>
+            <button type="button" class="secondary" id="load">Load saved</button>
+            <button type="button" class="secondary" id="download">Download plan (.txt)</button>
+            <button type="button" class="secondary" onclick="window.print()">Print / PDF</button>
+            <button type="button" class="danger" id="reset">Reset</button>
+          </div>
+          <small class="helper">We use the Mifflin‑St Jeor equation for BMR and standard activity factors. Results are estimates for healthy individuals.</small>
+        </form>
+      </div>
+    </section>
+
+    <!-- OUTPUTS -->
+    <section class="card">
+      <div class="content">
+        <h2>Results</h2>
+        <div class="stats" id="stats">
+          <div class="stat"><span>BMI</span><b id="bmi">—</b><small id="bmiNote" class="ok"></small></div>
+          <div class="stat"><span>BMR</span><b id="bmr">—</b><small>kcal/day</small></div>
+          <div class="stat"><span>TDEE</span><b id="tdee">—</b><small>kcal/day</small></div>
+          <div class="stat"><span>Target Calories</span><b id="target">—</b><small>kcal/day</small></div>
+        </div>
+
+        <div class="content plan" id="planWrap">
+          <h3 class="hidden" id="macroTitle">Macros</h3>
+          <div id="macros" class="hidden"></div>
+          <h3 class="hidden" id="menuTitle">Full‑Day Menu</h3>
+          <div id="menu" class="hidden"></div>
+          <h3 class="hidden" id="shopTitle">Shopping List</h3>
+          <ul id="shopping" class="hidden"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="disclaimer">
+      <b>Educational use only:</b> This tool gives generalized nutrition estimates and meal ideas, not medical advice. If you have a medical condition, food allergies, or are under 13, consult a qualified professional.
+    </div>
+  </footer>
+
+  <script>
+    // --- Utilities ---
+    const el = id => document.getElementById(id);
+    const round = (n, d=0) => Math.round(n * 10**d) / 10**d;
+
+    function cmToM(cm){ return cm/100 }
+    function bmi(weightKg, heightCm){ const m=cmToM(heightCm); return weightKg/(m*m) }
+
+    function bmr({sex, weight, height, age}){
+      // Mifflin-St Jeor
+      if(sex==='male') return 10*weight + 6.25*height - 5*age + 5;
+      return 10*weight + 6.25*height - 5*age - 161;
+    }
+
+    function goalAdjustment(goal){
+      if(goal==='lose') return -500;      // ~0.45 kg/week
+      if(goal==='gain') return  300;      // lean gain
+      return 0;
+    }
+
+    function macroSplit(goal, diet){
+      // Defaults (percent of kcal)
+      let P=25, C=45, F=30;
+      if(diet==='lowcarb'){ P=30; C=25; F=45 }
+      if(diet==='highprotein'){ P=30; C=40; F=30 }
+      if(diet==='vegan'){ P=20; C=50; F=30 }
+      if(diet==='vegetarian'){ P=23; C=47; F=30 }
+      if(goal==='gain'){ P+=5; C+=5; F-=10 }
+      if(goal==='lose'){ P+=5; C-=10; F+=5 }
+      return {P,C,F};
+    }
+
+    function macroGrams(kcal,{P,C,F}){
+      // 4 kcal/g for protein/carbs, 9 kcal/g for fat
+      return {
+        protein: round((kcal * P/100) / 4),
+        carbs:   round((kcal * C/100) / 4),
+        fat:     round((kcal * F/100) / 9)
+      }
+    }
+
+    // Simple ingredient DB (kept intentionally basic)
+    const DB = {
+      balanced: {
+        breakfast:[
+          { name:"Oats with milk + banana + almonds", kcal:420, items:["rolled oats","milk","banana","almonds","honey"] },
+          { name:"Veg omelette + 1 toast", kcal:380, items:["eggs","onion","tomato","spinach","bread"] },
+          { name:"Curd parfait with fruits + granola", kcal:400, items:["curd/yogurt","seasonal fruits","granola"] }
+        ],
+        lunch:[
+          { name:"Grilled chicken + rice + salad", kcal:650, items:["chicken breast","rice","lettuce","cucumber","tomato"] },
+          { name:"Rajma (kidney bean curry) + 2 chapati + salad", kcal:650, items:["rajma","onion","tomato","spices","atta"] },
+          { name:"Paneer bhurji + 2 chapati + salad", kcal:620, items:["paneer","onion","capsicum","atta"] }
+        ],
+        dinner:[
+          { name:"Dal + quinoa/rice + mixed veg", kcal:600, items:["toor/moong dal","quinoa/rice","mixed vegetables"] },
+          { name:"Fish curry + rice + sautéed beans", kcal:620, items:["fish","coconut milk (opt)","rice","green beans"] },
+          { name:"Chickpea pulao + raita", kcal:590, items:["chana","rice","spices","curd"] }
+        ],
+        snacks:[
+          { name:"Apple + peanut butter", kcal:220, items:["apple","peanut butter"] },
+          { name:"Roasted chana", kcal:180, items:["roasted chana"] },
+          { name:"Buttermilk + handful of nuts", kcal:200, items:["buttermilk","mixed nuts"] }
+        ]
+      },
+      vegetarian:{
+        breakfast:[
+          { name:"Poha with peanuts + lemon", kcal:380, items:["poha","peanuts","mustard","onion","lemon"] },
+          { name:"Paneer stuffed veggie sandwich", kcal:420, items:["paneer","bread","capsicum","onion"] },
+          { name:"Upma + coconut chutney", kcal:400, items:["rava","mixed veg","coconut","chana dal"] }
+        ],
+        lunch:[
+          { name:"Chole + 2 chapati + salad", kcal:650, items:["chickpeas","atta","onion","tomato","spices"] },
+          { name:"Sambar + rice + poriyal", kcal:640, items:["toor dal","rice","vegetables","spices"] },
+          { name:"Palak paneer + 2 chapati", kcal:620, items:["spinach","paneer","atta","garlic"] }
+        ],
+        dinner:[
+          { name:"Khichdi + ghee + salad", kcal:600, items:["rice","moong dal","ghee","veggies"] },
+          { name:"Vegetable biryani + raita", kcal:620, items:["rice","vegetables","spices","curd"] },
+          { name:"Matar paneer + 2 chapati", kcal:620, items:["paneer","green peas","atta"] }
+        ],
+        snacks:[
+          { name:"Fruit bowl + curd", kcal:220, items:["seasonal fruits","curd"] },
+          { name:"Sprout chaat", kcal:200, items:["moong sprouts","onion","tomato","lemon"] },
+          { name:"Paneer tikka (air‑fried)", kcal:240, items:["paneer","curd","spices"] }
+        ]
+      },
+      vegan:{
+        breakfast:[
+          { name:"Overnight oats with soy milk + nuts", kcal:420, items:["oats","soy milk","nuts","banana"] },
+          { name:"Besan chilla + green chutney", kcal:380, items:["besan","onion","tomato","coriander"] },
+          { name:"Tofu scramble + toast", kcal:400, items:["tofu","onion","spinach","bread"] }
+        ],
+        lunch:[
+          { name:"Rajma + rice + salad", kcal:650, items:["rajma","rice","salad veg"] },
+          { name:"Chickpea curry + 2 phulka", kcal:640, items:["chickpeas","atta","tomato","onion"] },
+          { name:"Tofu stir‑fry + rice", kcal:630, items:["tofu","mixed veg","soy sauce","rice"] }
+        ],
+        dinner:[
+          { name:"Dal + millet roti + sabzi", kcal:600, items:["dal","millet flour","vegetables"] },
+          { name:"Veg pulao + salad", kcal:610, items:["rice","mixed veg","whole spices"] },
+          { name:"Sweet potato & bean bowl", kcal:620, items:["sweet potato","black beans","corn","greens"] }
+        ],
+        snacks:[
+          { name:"Banana + peanut butter", kcal:220, items:["banana","peanut butter"] },
+          { name:"Trail mix (nuts+seeds)", kcal:230, items:["almonds","raisins","seeds"] },
+          { name:"Roasted chana", kcal:180, items:["roasted chana"] }
+        ]
+      },
+      lowcarb:{
+        breakfast:[
+          { name:"Masala omelette + sautéed veggies", kcal:380, items:["eggs","onion","capsicum","spinach"] },
+          { name:"Greek curd + nuts + berries", kcal:350, items:["curd","nuts","berries"] }
+        ],
+        lunch:[
+          { name:"Paneer salad bowl", kcal:520, items:["paneer","lettuce","tomato","cucumber","olive oil"] },
+          { name:"Chicken tikka bowl", kcal:540, items:["chicken","curd","spices","greens"] }
+        ],
+        dinner:[
+          { name:"Egg curry + cauliflower rice", kcal:520, items:["eggs","tomato","spices","cauliflower"] },
+          { name:"Fish tikka + sautéed veg", kcal:540, items:["fish","spices","veg"] }
+        ],
+        snacks:[
+          { name:"Cucumber + hummus", kcal:160, items:["cucumber","hummus"] },
+          { name:"Cheese cubes + nuts", kcal:220, items:["cheese","nuts"] }
+        ]
+      },
+      highprotein:{
+        breakfast:[
+          { name:"Eggs (3) + toast + fruit", kcal:450, items:["eggs","bread","fruit"] },
+          { name:"Paneer bhurji roll", kcal:460, items:["paneer","chapati","onion","capsicum"] }
+        ],
+        lunch:[
+          { name:"Chicken + dal + rice", kcal:700, items:["chicken","dal","rice"] },
+          { name:"Tofu/paneer stir‑fry + millet", kcal:680, items:["tofu/paneer","millet","veg"] }
+        ],
+        dinner:[
+          { name:"Kidney bean bowl + quinoa", kcal:650, items:["rajma","quinoa","veg"] },
+          { name:"Egg curry + chapati", kcal:620, items:["eggs","atta","tomato","onion"] }
+        ],
+        snacks:[
+          { name:"Curd + whey (optional)", kcal:220, items:["curd","whey (opt)"] },
+          { name:"Roasted chana + nuts", kcal:230, items:["roasted chana","nuts"] }
+        ]
+      }
+    };
+
+    function filterByAllergy(items, avoid){
+      if(!avoid.length) return true; // ok
+      return !items.some(it => avoid.some(a => it.toLowerCase().includes(a)));
+    }
+
+    function pickMeals(dietKey, avoid){
+      const bank = DB[dietKey] || DB.balanced;
+      function pick(cat){
+        const arr = bank[cat];
+        const choices = arr.filter(m => filterByAllergy(m.items, avoid));
+        return choices.length? choices[Math.floor(Math.random()*choices.length)] : {name:`No safe ${cat} found — adjust allergies/diet`, kcal:0, items:[]};
+      }
+      return { breakfast: pick('breakfast'), lunch: pick('lunch'), dinner: pick('dinner'), snack: pick('snacks') };
+    }
+
+    function sectionsFromCalories(target){
+      return {
+        breakfast: Math.round(target*0.25),
+        lunch:     Math.round(target*0.35),
+        dinner:    Math.round(target*0.30),
+        snack:     Math.round(target*0.10)
+      };
+    }
+
+    function statusFromBMI(b){
+      if(b<18.5) return {txt:'Underweight', cls:'warn'};
+      if(b<25) return {txt:'Healthy', cls:'ok'};
+      if(b<30) return {txt:'Overweight', cls:'warn'};
+      return {txt:'Obese', cls:'warn'};
+    }
+
+    // --- Wire up ---
+    const fields = ['name','sex','age','height','weight','activity','goal','diet','allergies','notes'];
+
+    function readForm(){
+      const data = Object.fromEntries(fields.map(id=>[id, el(id).value.trim? el(id).value.trim(): el(id).value]));
+      data.age = Number(data.age); data.height=Number(data.height); data.weight=Number(data.weight); data.activity=Number(data.activity);
+      data.sex = el('sex').value; data.goal=el('goal').value; data.diet=el('diet').value;
+      data.allergies = data.allergies? data.allergies.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean):[];
+      return data;
+    }
+
+    function validate(d){
+      let msg=[];
+      if(!(d.age>=5 && d.age<=100)) msg.push('Age must be 5-100');
+      if(!(d.height>=80 && d.height<=230)) msg.push('Height must be 80-230 cm');
+      if(!(d.weight>=20 && d.weight<=250)) msg.push('Weight must be 20-250 kg');
+      return msg;
+    }
+
+    function render(){
+      const d = readForm();
+      const errs = validate(d);
+      if(errs.length){ alert('Please fix:\n'+errs.join('\n')); return }
+
+      const bmrVal = bmr({sex:d.sex, weight:d.weight, height:d.height, age:d.age});
+      const tdee = bmrVal * d.activity;
+      let target = tdee + goalAdjustment(d.goal);
+      // keep within reasonable bounds
+      target = Math.max(1200, Math.min(target, 4500));
+
+      const bmiVal = bmi(d.weight,d.height);
+      const s = statusFromBMI(bmiVal);
+
+      el('bmi').textContent = round(bmiVal,1);
+      el('bmiNote').textContent = s.txt; el('bmiNote').className=s.cls;
+      el('bmr').textContent = Math.round(bmrVal);
+      el('tdee').textContent = Math.round(tdee);
+      el('target').textContent = Math.round(target);
+
+      // macros
+      const split = macroSplit(d.goal, d.diet);
+      const grams = macroGrams(target, split);
+      el('macroTitle').classList.remove('hidden');
+      const mac = `<div class="stats">
+        <div class="stat"><span>Protein</span><b>${grams.protein} g</b><small>${split.P}% of kcal</small></div>
+        <div class="stat"><span>Carbs</span><b>${grams.carbs} g</b><small>${split.C}% of kcal</small></div>
+        <div class="stat"><span>Fat</span><b>${grams.fat} g</b><small>${split.F}% of kcal</small></div>
+        <div class="stat"><span>Fiber (aim)</span><b>${Math.max(20, Math.round(d.weight*0.3))} g</b><small>est.</small></div>
+      </div>`;
+      el('macros').innerHTML = mac; el('macros').classList.remove('hidden');
+
+      // meals
+      const avoid = d.allergies;
+      const meals = pickMeals(d.diet==='balanced'? 'balanced': d.diet, avoid);
+      const targets = sectionsFromCalories(target);
+
+      function mealCard(label, m, kcalTarget){
+        const note = m.kcal? `(~${m.kcal} kcal base, adjust to ~${kcalTarget} kcal)` : `Target ~${kcalTarget} kcal`;
+        return `<div class="card" style="padding:12px;border-radius:14px;background:#0b121a;border:1px solid #223248;margin:8px 0;">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+            <h4 style="margin:0">${label}: ${m.name}</h4>
+            <span class="tag">${note}</span>
+          </div>
+          <div style="margin-top:8px;color:#9fb0c7">Ingredients: ${m.items.join(', ') || '—'}</div>
+          <div style="margin-top:6px;font-size:13px;color:#a8c0da">Serving tip: plate half veggies, quarter protein, quarter grains/roots (adjust for diet).</div>
+        </div>`
+      }
+
+      el('menuTitle').classList.remove('hidden');
+      el('menu').innerHTML = [
+        mealCard('Breakfast', meals.breakfast, targets.breakfast),
+        mealCard('Lunch', meals.lunch, targets.lunch),
+        mealCard('Snack', meals.snack, targets.snack),
+        mealCard('Dinner', meals.dinner, targets.dinner),
+      ].join('');
+      el('menu').classList.remove('hidden');
+
+      // shopping list
+      const list = [...new Set([
+        ...meals.breakfast.items,
+        ...meals.lunch.items,
+        ...meals.dinner.items,
+        ...meals.snack.items
+      ])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+      const ul = el('shopping');
+      ul.innerHTML = list.map(i=>`<li>${i}</li>`).join('');
+      el('shopTitle').classList.remove('hidden');
+      ul.classList.remove('hidden');
+
+      // cache latest result for download
+      window.__latestPlan = {
+        meta: d,
+        numbers: { bmi: round(bmiVal,1), bmr: Math.round(bmrVal), tdee: Math.round(tdee), target: Math.round(target), macros: grams },
+        meals, targets, shopping:list
+      };
+    }
+
+    // Buttons
+    el('generate').addEventListener('click', render);
+
+    el('save').addEventListener('click', ()=>{
+      const d = readForm();
+      localStorage.setItem('dietplan.inputs', JSON.stringify(d));
+      alert('Saved locally ✅');
+    });
+    el('load').addEventListener('click', ()=>{
+      const raw = localStorage.getItem('dietplan.inputs');
+      if(!raw) return alert('No saved inputs');
+      const d = JSON.parse(raw);
+      fields.forEach(id=>{ if(el(id)) el(id).value = Array.isArray(d[id])? d[id].join(', '): d[id]; });
+      alert('Loaded ✅');
+    });
+
+    el('reset').addEventListener('click', ()=>{
+      document.getElementById('form').reset();
+      ['bmi','bmr','tdee','target'].forEach(id=>el(id).textContent='—');
+      ['macroTitle','menuTitle','shopTitle'].forEach(id=>el(id).classList.add('hidden'));
+      ['macros','menu','shopping'].forEach(id=>{ el(id).innerHTML=''; el(id).classList.add('hidden') });
+    });
+
+    el('download').addEventListener('click', ()=>{
+      const P = window.__latestPlan;
+      if(!P){ alert('Generate a plan first.'); return }
+      const lines = [];
+      lines.push(`# DietPlan AI — Personal Meal Plan\n`);
+      if(P.meta.name) lines.push(`Name: ${P.meta.name}`);
+      lines.push(`Sex: ${P.meta.sex}, Age: ${P.meta.age}, Height: ${P.meta.height} cm, Weight: ${P.meta.weight} kg`);
+      lines.push(`Activity: ${P.meta.activity}, Goal: ${P.meta.goal}, Diet: ${P.meta.diet}`);
+      if(P.meta.allergies?.length) lines.push(`Allergies/Avoid: ${P.meta.allergies.join(', ')}`);
+      if(P.meta.notes) lines.push(`Notes: ${P.meta.notes}`);
+      lines.push('\nNUMBERS');
+      lines.push(`• BMI: ${P.numbers.bmi}`);
+      lines.push(`• BMR: ${P.numbers.bmr} kcal`);
+      lines.push(`• TDEE: ${P.numbers.tdee} kcal`);
+      lines.push(`• Target: ${P.numbers.target} kcal`);
+      lines.push(`• Macros: Protein ${P.numbers.macros.protein} g, Carbs ${P.numbers.carbs} g, Fat ${P.numbers.fat} g`);
+      lines.push('\nMENU');
+      for(const k of ['breakfast','lunch','snack','dinner']){
+        const m=P.meals[k]; const tgt=P.targets[k];
+        lines.push(`- ${k[0].toUpperCase()+k.slice(1)}: ${m.name} (aim ~${tgt} kcal)`);
+      }
+      lines.push('\nSHOPPING LIST');
+      P.shopping.forEach(i=>lines.push(`- ${i}`));
+      lines.push('\nDisclaimer: Educational use only. Not medical advice.\n');
+
+      const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'dietplan.txt'; a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
